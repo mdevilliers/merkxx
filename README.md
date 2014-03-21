@@ -16,4 +16,7 @@ erl -pa ebin deps/*/ebin
 
 merkxx:start().
 merkxx:connect().
+
+
+merkxx:provision_application("MyApplicationName", "sleep 50", "LocationNotUsedAtTheMoment"). 
 ```

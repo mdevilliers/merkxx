@@ -59,8 +59,7 @@ reregistered(State, MasterInfo) ->
 
 resourceOffers(State, Offer) ->
     lager:info("Mesos::ResourceOffers callback : ~p ~n", [Offer]),
-    lager:info("Declining offer", []),
-    scheduler:declineOffer(Offer#'Offer'.id),
+    gen_server:cast(?MODULE, {resourceOffers, Offer}),
     {ok,State}.
 
 disconnected(State) ->
@@ -99,6 +98,35 @@ init([]) ->
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
+handle_cast({resourceOffers, Offer}, State) ->
+  
+    Cpu = 1,
+    Memory = 512,
+    Ports = [],
+    lager:info("Offer : ~p~n", [Offer]),
+    case merkxx_request:match_next_request({Cpu, Memory, Ports }) of
+         {ok, []} ->
+            lager:info("Declining offer", []),
+            scheduler:declineOffer(Offer#'Offer'.id);
+         {ok, [ {provision_request, Identifier , Name, Command, _, _ , RequestedCpu , RequestedMemory , _ } ]} ->
+            
+                UniqueName = "Merkxx_" ++ Name ++ Identifier,
+                Scalar = mesos_pb:enum_symbol_by_value('Value.Type', 0),
+                CpuResource = #'Resource'{name="cpus", type=Scalar, scalar=#'Value.Scalar'{value=RequestedCpu}},
+                MemoryResource = #'Resource'{name="mem", type=Scalar, scalar=#'Value.Scalar'{value=RequestedMemory}},
+                %PortResource = #'Resource'{name="memory", type=Scalar, scalar=#'Value.Scalar'{value=Ports}},
+                TaskInfo = #'TaskInfo'{
+                                name = UniqueName,
+                                task_id = #'TaskID'{ value = "task_id_" ++ UniqueName},
+                                slave_id = Offer#'Offer'.slave_id,
+                                resources = [MemoryResource, CpuResource],
+                                command = #'CommandInfo'{value = Command}
+                },
+                lager:info("TaskInfo : ~p~n", [TaskInfo]),
+                {ok,driver_running} = scheduler:launchTasks(Offer#'Offer'.id, [TaskInfo]),
+                merkxx_request:close_request(Identifier)
+    end,
+  {noreply, State};
 handle_cast({disconnect}, State) ->
   disconnect_from_mesos(),
   {noreply, State};
