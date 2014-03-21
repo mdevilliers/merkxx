@@ -44,12 +44,12 @@ handle_call({match_next_request,  {_Cpu, _Memory, _Ports} }, _, State) ->
     end;
 
 handle_call({store_new_request,  Request }, _, State) ->
-    {_,{H,M,S}} = calendar:local_time(),
-    Identifier = integer_to_list(H) ++ integer_to_list(M) ++ integer_to_list(S),
+   
+    Identifier = merkxx_uuid:generate(),
     Request1 = Request#provision_request{identifier = Identifier},
     true = ets:insert(?PENDING_REQUESTS_STORE_TABLE_ID, Request1),
     {reply, {ok,Identifier} ,State};
-    
+
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
