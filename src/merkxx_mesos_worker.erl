@@ -51,46 +51,46 @@ disconnect_from_mesos() ->
     ok = scheduler:destroy(). % destroy and cleanup the nif
 
 % MESOS call backs
-registered(State, FrameworkID, MasterInfo) ->
+registered(MesosState, FrameworkID, MasterInfo) ->
     lager:info("Mesos::Registered callback : ~p ~p~n", [FrameworkID, MasterInfo]),
-    {ok,State}.
+    {ok,MesosState}.
 
-reregistered(State, MasterInfo) ->
+reregistered(MesosState, MasterInfo) ->
     lager:info("Mesos::ReRegistered callback : ~p ~n", [MasterInfo]),
-    {ok,State}.
+    {ok,MesosState}.
 
-resourceOffers(State, Offer) ->
+resourceOffers(MesosState, Offer) ->
     lager:info("Mesos::ResourceOffers callback : ~p ~n", [Offer]),
     gen_server:cast(?MODULE, {resourceOffers, Offer}),
-    {ok,State}.
+    {ok,MesosState}.
 
-disconnected(State) ->
+disconnected(MesosState) ->
     lager:info("Mesos::Disconnected callback"),
-    {ok,State}.
+    {ok,MesosState}.
 
-offerRescinded(State, OfferID) ->
+offerRescinded(MesosState, OfferID) ->
     lager:info("Mesos::OfferRescinded callback : ~p ~n", [OfferID]),
-    {ok,State}.
+    {ok,MesosState}.
 
-statusUpdate(State, StatusUpdate) ->
+statusUpdate(MesosState, StatusUpdate) ->
     lager:info("Mesos::StatusUpdate callback : ~p ~n", [StatusUpdate]),
-    {ok,State}. 
+    {ok,MesosState}. 
 
-frameworkMessage(State, ExecutorID, SlaveID, Message) ->
+frameworkMessage(MesosState, ExecutorID, SlaveID, Message) ->
     lager:info("Mesos::FrameworkMessage callback : ~p ~p ~p ~n", [ExecutorID, SlaveID, Message]),
-    {ok,State}.
+    {ok,MesosState}.
 
-slaveLost(State, SlaveID) ->
+slaveLost(MesosState, SlaveID) ->
     lager:info("Mesos::SlaveLost callback : ~p ~n", [SlaveID]),
-    {ok,State}.
+    {ok,MesosState}.
 
-executorLost(State, ExecutorID, SlaveID, Status) ->
+executorLost(MesosState, ExecutorID, SlaveID, Status) ->
     lager:info("Mesos::ExecutorLost callback : ~p ~p ~p ~n", [ExecutorID, SlaveID, Status]),
-    {ok,State}.
+    {ok,MesosState}.
 
-error(State, Message) ->
+error(MesosState, Message) ->
     lager:error("Mesos::Error callback : ~p ~n", [Message]),
-    {ok,State}.
+    {ok,MesosState}.
 
 %% gen server API
 init([]) ->
