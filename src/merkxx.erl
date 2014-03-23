@@ -1,6 +1,6 @@
 -module (merkxx).
 
--export ([start/0, connect/0, provision_application/3]).
+-export ([start/0, connect/0, run_command/2]).
 -include ("merkxx.hrl").
 
 start() ->
@@ -10,7 +10,7 @@ start() ->
 connect() ->
     merkxx_mesos_worker:connect("127.0.1.1:5050").
 
-provision_application(Name, Command, Location) ->
-    Request = #provision_request{ name=Name, start_command=Command, location=Location },
+run_command(Name, Command) ->
+    Request = #provision_request{ name=Name, start_command=Command },
     {ok, Identifier} = merkxx_request:new_request(Request),
     {ok, Identifier}.

@@ -6,6 +6,8 @@
 -include_lib("erlang_mesos/include/mesos_pb.hrl").
 
 -export ([start_link/0]).
+
+% gen server
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 % api
@@ -100,21 +102,23 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({resourceOffers, Offer}, State) ->
   
+    %to do match from Offer
     Cpu = 1,
     Memory = 512,
     Ports = [],
+
     lager:info("Offer : ~p~n", [Offer]),
+
     case merkxx_request:match_next_request({Cpu, Memory, Ports }) of
          {ok, []} ->
             lager:info("Declining offer", []),
             scheduler:declineOffer(Offer#'Offer'.id);
          {ok, [ {provision_request, Identifier , Name, Command, _, _ , RequestedCpu , RequestedMemory , _ } ]} ->
             
-                UniqueName = "Merkxx_" ++ Name ++ Identifier,
+                UniqueName = "Merkxx_" ++ Name ++ "_" ++ Identifier,
                 Scalar = mesos_pb:enum_symbol_by_value('Value.Type', 0),
                 CpuResource = #'Resource'{name="cpus", type=Scalar, scalar=#'Value.Scalar'{value=RequestedCpu}},
                 MemoryResource = #'Resource'{name="mem", type=Scalar, scalar=#'Value.Scalar'{value=RequestedMemory}},
-                %PortResource = #'Resource'{name="memory", type=Scalar, scalar=#'Value.Scalar'{value=Ports}},
                 TaskInfo = #'TaskInfo'{
                                 name = UniqueName,
                                 task_id = #'TaskID'{ value = "task_id_" ++ UniqueName},
