@@ -100,19 +100,20 @@ init([]) ->
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
-handle_cast({resourceOffers, Offer}, State) ->
+handle_cast({resourceOffers, {'Offer',{'OfferID',_} = OfferId,_,{'SlaveID',_} = SlaveId,_,ResourceArr,[],[]}} = Offer, State) ->
   
-    %to do match from Offer
-    Cpu = 1,
-    Memory = 512,
-    Ports = [],
-
     lager:info("Offer : ~p~n", [Offer]),
+
+    OfferedResources = examineResources(ResourceArr),
+
+    Cpu = proplists:get_value(cpu, OfferedResources),
+    Memory = proplists:get_value(mem, OfferedResources),
+    Ports = proplists:get_value(ports, OfferedResources),
 
     case merkxx_request:match_next_request({Cpu, Memory, Ports }) of
          {ok, []} ->
             lager:info("Declining offer", []),
-            scheduler:declineOffer(Offer#'Offer'.id);
+            scheduler:declineOffer(OfferId);
          {ok, [ {provision_request, Identifier , Name, Command, _, _ , RequestedCpu , RequestedMemory , _ } ]} ->
             
                 UniqueName = "Merkxx_" ++ Name ++ "_" ++ Identifier,
@@ -122,12 +123,12 @@ handle_cast({resourceOffers, Offer}, State) ->
                 TaskInfo = #'TaskInfo'{
                                 name = UniqueName,
                                 task_id = #'TaskID'{ value = "task_id_" ++ UniqueName},
-                                slave_id = Offer#'Offer'.slave_id,
+                                slave_id = SlaveId,
                                 resources = [MemoryResource, CpuResource],
                                 command = #'CommandInfo'{value = Command}
                 },
                 lager:info("TaskInfo : ~p~n", [TaskInfo]),
-                {ok,driver_running} = scheduler:launchTasks(Offer#'Offer'.id, [TaskInfo]),
+                {ok,driver_running} = scheduler:launchTasks(OfferId, [TaskInfo]),
                 merkxx_request:close_request(Identifier)
     end,
   {noreply, State};
@@ -149,3 +150,18 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
+
+
+examineResources(ResourceArr) ->
+    examine_resource_offer(ResourceArr, []).
+
+examine_resource_offer([], Acc) ->
+    Acc;
+examine_resource_offer([{'Resource',"cpus",'SCALAR',{'Value.Scalar',CPU},_,_,_}|T], Acc) ->
+    examine_resource_offer(T, [{cpu, CPU}|Acc]);
+examine_resource_offer([{'Resource',"mem",'SCALAR',{'Value.Scalar',Mem},_,_,_}|T], Acc) ->
+    examine_resource_offer(T, [{mem, Mem}|Acc]);
+examine_resource_offer([{'Resource',"disk",'SCALAR',{'Value.Scalar',Disk},_,_,_}|T], Acc) ->
+    examine_resource_offer(T, [{disk, Disk}|Acc]);
+examine_resource_offer([{'Resource',"ports",'RANGES',_,{'Value.Ranges',[{'Value.Range',From,To}]},_,_}|T], Acc) ->
+    examine_resource_offer(T, [{ports, [From,To]}|Acc]).

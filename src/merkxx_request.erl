@@ -45,7 +45,7 @@ handle_call({match_next_request,  {_Cpu, _Memory, _Ports} }, _, State) ->
 
 handle_call({store_new_request,  Request }, _, State) ->
    
-    Identifier = merkxx_uuid:generate(),
+    Identifier = merkxx_util:generate_uuid(),
     Request1 = Request#provision_request{identifier = Identifier},
     true = ets:insert(?PENDING_REQUESTS_STORE_TABLE_ID, Request1),
     {reply, {ok,Identifier} ,State};
