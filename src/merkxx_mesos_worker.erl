@@ -104,7 +104,7 @@ handle_cast({resourceOffers, {'Offer',{'OfferID',_} = OfferId,_,{'SlaveID',_} = 
   
     lager:info("Offer : ~p~n", [Offer]),
 
-    OfferedResources = examineResources(ResourceArr),
+    OfferedResources = examineResourcesInOffer(ResourceArr),
 
     Cpu = proplists:get_value(cpu, OfferedResources),
     Memory = proplists:get_value(mem, OfferedResources),
@@ -126,7 +126,8 @@ handle_cast({resourceOffers, {'Offer',{'OfferID',_} = OfferId,_,{'SlaveID',_} = 
                                 slave_id = SlaveId,
                                 resources = [MemoryResource, CpuResource],
                                 command = #'CommandInfo'{value = Command}
-                },
+                                },
+
                 lager:info("TaskInfo : ~p~n", [TaskInfo]),
                 {ok,driver_running} = scheduler:launchTasks(OfferId, [TaskInfo]),
                 merkxx_request:close_request(Identifier)
@@ -152,7 +153,7 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 
-examineResources(ResourceArr) ->
+examineResourcesInOffer(ResourceArr) ->
     examine_resource_offer(ResourceArr, []).
 
 examine_resource_offer([], Acc) ->
