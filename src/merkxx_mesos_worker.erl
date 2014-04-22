@@ -114,7 +114,8 @@ handle_cast({resourceOffers, {'Offer',{'OfferID',_} = OfferId,_,{'SlaveID',_} = 
          {ok, []} ->
             lager:info("Declining offer", []),
             scheduler:declineOffer(OfferId);
-         {ok, [ {provision_request, Identifier , Name, Command, _, _ , RequestedCpu , RequestedMemory , _ } ]} ->
+         
+         {ok, [ {provision_request, Identifier , Name, Command, _, _ , RequestedCpu , RequestedMemory , _,_ } ]} ->
             
                 UniqueName = "Merkxx_" ++ Name ++ "_" ++ Identifier,
                 Scalar = mesos_pb:enum_symbol_by_value('Value.Type', 0),
