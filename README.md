@@ -1,8 +1,8 @@
 About
 -----
 
-Application to play with erlang-mesos binding.
-
+Application to play with erlang-mesos binding. 
+Once started you can send commands to messos to run.
 
 Run
 ---
@@ -15,7 +15,6 @@ Run
 erl -pa ebin deps/*/ebin
 
 merkxx:start().
-merkxx:connect().
 
 merkxx:run_command("MyCommandName", "sleep 50"). 
 ```

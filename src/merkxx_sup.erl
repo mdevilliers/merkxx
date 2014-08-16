@@ -15,7 +15,10 @@ start_link() ->
 
 init([]) ->
 
-    MesosWorker = ?CHILD(merkxx_mesos_worker, worker),
+    MesosWorker ={ merkxx_mesos_worker, 
+    				{scheduler, start_link, [merkxx_mesos_worker, "127.0.1.1:5050"]},
+					permanent , brutal_kill, worker,[]},
+					
     Store = ?CHILD(merkxx_request, worker),
     {ok, { {one_for_one, 5, 10}, [MesosWorker, Store]} }.
 

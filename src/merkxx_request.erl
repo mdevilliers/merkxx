@@ -15,16 +15,13 @@ start_link() ->
   gen_server:start({local, ?MODULE}, ?MODULE, [], []).
 
 new_request(Request)->
-   Response = gen_server:call(?MODULE, {store_new_request,  Request }),
-   Response. 
+   gen_server:call(?MODULE, {store_new_request, Request }). 
 
 match_next_request({Cpu, Memory, Ports}) ->
-   Response = gen_server:call(?MODULE, {match_next_request,  {Cpu, Memory, Ports} }),
-   Response.
+   gen_server:call(?MODULE, {match_next_request, {Cpu, Memory, Ports} }).
 
 close_request(Identifier) ->
-   Response = gen_server:call(?MODULE, {close_request,  Identifier }),
-   Response.
+   gen_server:call(?MODULE, {close_request, Identifier }).
 
 %% GEN SERVER callbacks
 init([]) ->
@@ -43,8 +40,7 @@ handle_call({match_next_request,  {_Cpu, _Memory, _Ports} }, _, State) ->
             {reply, {ok,Results} ,State}
     end;
 
-handle_call({store_new_request,  Request }, _, State) ->
-   
+handle_call({store_new_request,  Request }, _, State) ->   
     Identifier = merkxx_util:generate_uuid(),
     Request1 = Request#provision_request{identifier = Identifier},
     true = ets:insert(?PENDING_REQUESTS_STORE_TABLE_ID, Request1),

@@ -32,8 +32,3 @@ mutliple_request_generous_offer_test()->
 
     ?assertEqual(Allocated2#match.request_identifier, Request2#provision_request.identifier),
     ?assertEqual(Allocated2#match.offer_identifier, Offer#resource_offer.identifier).
-
-%[
-%{match, request_identifier=123, offer_identifier="ABC"}
-%{match, request_identifier=345, offer_identifier="ABC"}
-%]
