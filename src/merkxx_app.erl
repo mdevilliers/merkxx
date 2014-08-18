@@ -10,7 +10,14 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    merkxx_sup:start_link().
+	MasterLocation = get_value(mesos_url, "127.0.1.1:5050"),
+    merkxx_sup:start_link(MasterLocation).
 
 stop(_State) ->
     ok.
+
+get_value(Key, Default) ->
+  case application:get_env(Key) of
+        {ok, Value} -> Value;
+        undefined -> Default
+  end.
