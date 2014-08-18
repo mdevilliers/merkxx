@@ -5,7 +5,10 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+                  lager,
+                  erlang_mesos,
+                  uuid
                  ]},
   {mod, { merkxx_app, []}},
   {env, [ { mesos_url, "127.0.1.1:5050"}]}
