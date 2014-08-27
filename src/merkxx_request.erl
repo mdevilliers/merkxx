@@ -14,7 +14,7 @@
 start_link() ->
   gen_server:start({local, ?MODULE}, ?MODULE, [], []).
 
-new_request(Request)->
+new_request(Request) when is_record(Request, provision_request)->
    gen_server:call(?MODULE, {store_new_request, Request }). 
 
 match_next_request({Cpu, Memory, Ports}) ->
@@ -32,7 +32,7 @@ handle_call( {close_request,  Identifier }, _, State) ->
     true = ets:delete(?PENDING_REQUESTS_STORE_TABLE_ID,Identifier),
     {reply, ok ,State};
 
-handle_call({match_next_request,  {_Cpu, _Memory, _Ports} }, _, State) ->
+handle_call({match_next_request, _ }, _, State) ->
     case ets:match(?PENDING_REQUESTS_STORE_TABLE_ID, '$1', 1) of % just grap the first one for now
         '$end_of_table'  ->
             {reply, {ok,[]} ,State};

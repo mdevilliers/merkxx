@@ -4,6 +4,7 @@
 -behaviour (scheduler).
 
 -include_lib("erlang_mesos/include/mesos_pb.hrl").
+-include ("merkxx.hrl").
 
 % api
 -export ([exit/0]).    
@@ -40,38 +41,26 @@ reregistered(MasterInfo, State) ->
     io:format("ReRegistered callback : ~p ~n", [MasterInfo]),
     {ok,State}.
 
-resourceOffers({'Offer',{'OfferID',_} = OfferId,_,{'SlaveID',_} = SlaveId,_,ResourceArr,[],[]} = Offer, State) ->
-    
-    lager:info("Offer : ~p~n", [Offer]),
+resourceOffers( #'Offer'{id = OfferId, slave_id = SlaveId, resources = ResourceArr}, State) ->
+   
+    lager:info("Offer : ~p~n", [OfferId]),
 
     OfferedResources = examineResourcesInOffer(ResourceArr),
 
+    lager:info("OfferedResources : ~p~n", [OfferedResources]),
+
     Cpu = proplists:get_value(cpu, OfferedResources),
     Memory = proplists:get_value(mem, OfferedResources),
-    Ports = proplists:get_value(ports, OfferedResources),
+    Ports = proplists:get_all_values(ports, OfferedResources),
 
     case merkxx_request:match_next_request({Cpu, Memory, Ports }) of
          {ok, []} ->
             lager:info("Declining offer", []),
             scheduler:declineOffer(OfferId);
          
-         {ok, [ {provision_request, Identifier , Name, Command, _, _ , RequestedCpu , RequestedMemory , _,_ } ]} ->
-            
-                UniqueName = "Merkxx_" ++ Name ++ "_" ++ Identifier,
-                Scalar = mesos_pb:enum_symbol_by_value('Value.Type', 0),
-                CpuResource = #'Resource'{name="cpus", type=Scalar, scalar=#'Value.Scalar'{value=RequestedCpu}},
-                MemoryResource = #'Resource'{name="mem", type=Scalar, scalar=#'Value.Scalar'{value=RequestedMemory}},
-                TaskInfo = #'TaskInfo'{
-                                name = UniqueName,
-                                task_id = #'TaskID'{ value = "task_id_" ++ UniqueName},
-                                slave_id = SlaveId,
-                                resources = [MemoryResource, CpuResource],
-                                command = #'CommandInfo'{value = Command}
-                                },
-
-                lager:info("TaskInfo : ~p~n", [TaskInfo]),
-                {ok,driver_running} = scheduler:launchTasks(OfferId, [TaskInfo]),
-                merkxx_request:close_request(Identifier)
+         {ok, PendingRequests} ->
+           lager:info("Pending requests ~p", [PendingRequests]),
+            provision_requests(SlaveId,OfferId, PendingRequests)
     end,
     {ok,State}.
 
@@ -106,13 +95,64 @@ error(Message, State) ->
 examineResourcesInOffer(ResourceArr) ->
     examine_resource_offer(ResourceArr, []).
 
+
 examine_resource_offer([], Acc) ->
     Acc;
-examine_resource_offer([{'Resource',"cpus",'SCALAR',{'Value.Scalar',CPU},_,_,_}|T], Acc) ->
-    examine_resource_offer(T, [{cpu, CPU}|Acc]);
-examine_resource_offer([{'Resource',"mem",'SCALAR',{'Value.Scalar',Mem},_,_,_}|T], Acc) ->
-    examine_resource_offer(T, [{mem, Mem}|Acc]);
-examine_resource_offer([{'Resource',"disk",'SCALAR',{'Value.Scalar',Disk},_,_,_}|T], Acc) ->
-    examine_resource_offer(T, [{disk, Disk}|Acc]);
-examine_resource_offer([{'Resource',"ports",'RANGES',_,{'Value.Ranges',[{'Value.Range',From,To}]},_,_}|T], Acc) ->
-    examine_resource_offer(T, [{ports, [From,To]}|Acc]).
+examine_resource_offer([ #'Resource'{name = "ports", ranges = Ranges } | T ], Acc) when is_record(Ranges, 'Value.Ranges') ->
+    examine_resource_offer(T, [ examine_ranges_offer(Ranges#'Value.Ranges'.range, Acc)|Acc]);
+examine_resource_offer([ #'Resource'{name = Name, scalar = Scalar } | T ], Acc) when is_record(Scalar, 'Value.Scalar') ->
+    examine_resource_offer(T, [{Name, Scalar#'Value.Scalar'.value}|Acc]).
+
+
+
+examine_ranges_offer([], Acc) -> Acc ;
+examine_ranges_offer([{'Value.Range',From,To} | T], Acc) ->
+    examine_ranges_offer(T, [{ports, [From,To]}|Acc]).
+
+provision_requests(_,_, []) -> ok;
+provision_requests(SlaveId, OfferId, [ #provision_request{ type= <<"command">>, identifier=Identifier , name=Name, start_command=Command, cpu=RequestedCpu, memory=RequestedMemory } | T]) ->
+
+        UniqueName = "Merkxx_Command_" ++ Name ++ "_" ++ Identifier,
+        Scalar = mesos_pb:enum_symbol_by_value('Value.Type', 0),
+        CpuResource = #'Resource'{name="cpus", type=Scalar, scalar=#'Value.Scalar'{value=RequestedCpu}},
+        MemoryResource = #'Resource'{name="mem", type=Scalar, scalar=#'Value.Scalar'{value=RequestedMemory}},
+
+        TaskInfo = #'TaskInfo'{
+                        name = UniqueName,
+                        task_id = #'TaskID'{ value = "task_id_" ++ UniqueName},
+                        slave_id = SlaveId,
+                        resources = [MemoryResource, CpuResource],
+                        command = #'CommandInfo'{value = Command}
+                        },
+
+        lager:info("TaskInfo : ~p~n", [TaskInfo]),
+        {ok,driver_running} = scheduler:launchTasks(OfferId, [TaskInfo]),
+        merkxx_request:close_request(Identifier),
+        provision_requests(SlaveId, OfferId,T);
+provision_requests(SlaveId, OfferId, [ #provision_request{ type= <<"docker">>, identifier=Identifier , name=Name, start_command=Command, cpu=RequestedCpu, memory=RequestedMemory, docker_image=DockerImage } | T]) ->
+
+        UniqueName = "Merkxx_Docker_" ++ Name ++ "_" ++ Identifier,
+        Scalar = mesos_pb:enum_symbol_by_value('Value.Type', 0),
+        CpuResource = #'Resource'{name="cpus", type=Scalar, scalar=#'Value.Scalar'{value=RequestedCpu}},
+        MemoryResource = #'Resource'{name="mem", type=Scalar, scalar=#'Value.Scalar'{value=RequestedMemory}},
+
+        DockerInfo = #'ContainerInfo.DockerInfo'{ image = DockerImage},
+
+        ContainerInfo = #'ContainerInfo'{ 
+                docker = DockerInfo,
+                type = 'DOCKER', 
+                volumes = []},
+
+        TaskInfo = #'TaskInfo'{
+                        name = UniqueName,
+                        task_id = #'TaskID'{ value = "task_id_" ++ UniqueName},
+                        slave_id = SlaveId,
+                        resources = [MemoryResource, CpuResource],
+                        command = #'CommandInfo'{value = Command},
+                        container = ContainerInfo
+                        },
+
+        lager:info("TaskInfo : ~p~n", [TaskInfo]),
+        {ok,driver_running} = scheduler:launchTasks(OfferId, [TaskInfo]),
+        merkxx_request:close_request(Identifier),
+        provision_requests(SlaveId, OfferId,T).

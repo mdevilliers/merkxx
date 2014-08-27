@@ -2,21 +2,12 @@
 -record (provision_request,{ 
     identifier, 
     name, 
-    start_command, 
+    type,
+    start_command,
+    docker_image, 
     location, 
     status = <<"InProgress">> , 
     cpu = 1.0, 
-    memory = 50.0,
+    memory = 5.0,
     ports = 0,
-    disk = 100.0}).
-
--record (resource_offer,{ 
-    identifier, 
-    cpu , 
-    memory,
-    ports,
-    disk}).
-
--record (match,{ 
-    request_identifier, 
-    offer_identifier}).
+    disk = 10.0}).

@@ -20,5 +20,5 @@ init([MasterLocation]) ->
 					permanent , brutal_kill, worker,[]},
 
     Store = ?CHILD(merkxx_request, worker),
-    {ok, { {one_for_one, 5, 10}, [MesosWorker, Store]} }.
+    {ok, { {one_for_one, 5, 10}, [Store, MesosWorker]} }.
 
