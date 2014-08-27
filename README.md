@@ -14,8 +14,6 @@ Run
 ./rebar compile skip_deps=true
 erl -pa ebin deps/*/ebin -s merkxx
 
-merkxx:start().
-
 merkxx:run_command("MyCommandName", "while sleep 10; do date -u +%T; done"). 
 
 merkxx:run_docker_container("MyDockerApplication", "libmesos/ubuntu", "while sleep 10; do date -u +%T; done"). 
